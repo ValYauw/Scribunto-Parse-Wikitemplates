@@ -89,37 +89,6 @@ function getTokenPositions(str, tokenPattern, getEndPos, offsetOne)
 end
 
 ------------------------------------------------------------------------
--- Auxiliary function
--- For given arrays of opening ({{) & closing (}}) token positions and template names, 
--- determine the starting & closing positions of the templates 
--- in the case where the templates are nesting another template within
--- Does not return anything.
---
--- @param arrOpenToken 			Array-like Lua table of opening token positions ({{)
--- @param arrCloseToken			Array-like Lua table of closing token positions (}})
--- @param arrTemplateNames		Array-like Lua table of template names
--- @param arrParsedTemplates	Array-like Lua table of Object-like Lua tables representing 
---								parsed templates
--- returns						nil
-------------------------------------------------------------------------
-function partitionNestedTemplatePositions(arrOpenToken, arrCloseToken, arrTemplateNames, arrParsedTemplates)
-	
-	local idx = #arrOpenToken
-	while idx > 0 do
-		local posOpen = arrOpenToken[idx]
-		local templateName = arrTemplateNames[idx]
-		for j,posClose in ipairs(arrCloseToken) do
-			if posClose > posOpen then
-				table.insert(arrParsedTemplates, { start_pos = posOpen, end_pos = posClose, template_name = templateName } )
-				table.remove(arrCloseToken, j)
-				break
-			end
-		end
-		idx = idx - 1
-	end
-end
-
-------------------------------------------------------------------------
 -- Sub-level function
 -- Parse wikitext and extract the templates (e.g. {{TEMPLATE}}) and parser functions 
 --	(e.g. {{DEFAULTSORT:}}) in the page 
@@ -127,77 +96,65 @@ end
 --
 -- @param strWikitext 			Wikitext contents of a page
 -- returns						Array-like Lua table containing:
---									Object-like Lua table with keys "start_pos", "end_pos",
---									and "template_name"
+--									Object-like Lua table with keys "start_pos" and "end_pos"
 ------------------------------------------------------------------------
 function parseTemplates(strWikitext)
-	
-	local PATTERN_FIND_OPENING_TOKEN = "{{[^{}|:\n]+"
-	local PATTERN_FIND_CLOSING_TOKEN = "}}"
-	
-    local arrOpenToken = { }
-    local arrCloseToken = { }
-    local arrTemplateNames = { }
-    local arrParsedTemplates = { }
     
-    local lastOpenTokenIdx = 1
-    local openTokenIdx, templateDecIdx = find(strWikitext, PATTERN_FIND_OPENING_TOKEN, lastOpenTokenIdx)
-    local d, closeTokenIdx = 0, 0
-    local lastCloseTokenIdx = (openTokenIdx or -2) + 2
-    while openTokenIdx ~= nil do
-    	
-    	-- Search for the nearest closing token position
-    	d, closeTokenIdx = find(strWikitext, PATTERN_FIND_CLOSING_TOKEN, lastCloseTokenIdx)
-    	if closeTokenIdx ~= nil then 
-    		lastCloseTokenIdx = closeTokenIdx + 1
-    		-- Add the pair of found opening & closing token position
-    		table.insert(arrOpenToken, openTokenIdx)
-    		table.insert(arrCloseToken, closeTokenIdx)
-    		-- Get the template name
-    		local templateName = sub(strWikitext, openTokenIdx + 2, templateDecIdx)
-    		table.insert(arrTemplateNames, templateName)
-    	end
-    	
-    	-- Move to next token
-    	lastOpenTokenIdx = templateDecIdx + 1
-    	openTokenIdx, templateDecIdx = find(strWikitext, PATTERN_FIND_OPENING_TOKEN, lastOpenTokenIdx)
-    	
-    end
-    
-    local numOpenTokens = #arrOpenToken
-    local numCloseTokens = #arrCloseToken
-    
-    -- From the array of token positions, process these positions to get the starting and ending positions of each template
-    -- (including nesting & nested templates)
-    idx = 1
-    terminateIdx = numOpenTokens
-    while idx <= terminateIdx do
-    	local openTokenPos = arrOpenToken[idx]
-    	local closeTokenPos = arrCloseToken[idx]
-    	local templateName = arrTemplateNames[idx]
-    	local nextOpenTokenPos = arrOpenToken[idx+1]
-    	-- For the simple case where no template is nested inside the current template, add that template immediately
-    	if closeTokenPos > openTokenPos and (nextOpenTokenPos == nil or closeTokenPos < nextOpenTokenPos) then
-    		table.insert(arrParsedTemplates, { start_pos = openTokenPos, end_pos = closeTokenPos, template_name = templateName })
-    	-- Otherwise process nested templates
-    	else
-    		local len_slice = 0
-    		repeat
-    			len_slice = len_slice + 1
-    			closeTokenPos = arrCloseToken[idx + len_slice]
-    			nextOpenTokenPos = arrOpenToken[idx + len_slice + 1]
-    		until (nextOpenTokenPos == nil or nextOpenTokenPos > closeTokenPos)
-    		len_slice = len_slice + 1
-    		local slicedArrOpenToken = slice(arrOpenToken, idx, len_slice)
-    		local slicedArrCloseToken = slice(arrCloseToken, idx, len_slice)
-    		local slicedArrTemplateNames = slice(arrTemplateNames, idx, len_slice)
-    		partitionNestedTemplatePositions(slicedArrOpenToken, slicedArrCloseToken, slicedArrTemplateNames, arrParsedTemplates)
-    		idx = idx + len_slice - 1
-    	end
-    	idx = idx + 1
-    end
+    local charIdx = 1
+	local prevChar = nil
+	local numOpeningTokens = 0
+	local numClosingTokens = 0
+	local tblTemplateTokens = { }
+	local idxTblTemplateTokens = 0
+	local tblIdxTemplateOpenTokens = { }
+	local skipNextChar = true
 	
-	return arrParsedTemplates
+	for curChar in mw.ustring.gcodepoint(strWikitext) do
+      --mw.log(prevChar, curChar)
+      curChar = mw.ustring.char(curChar)
+      
+	  if skipNextChar then
+	  	skipNextChar = false
+	  else
+	  
+	      -- Template opening token
+		  if prevChar == "{" and curChar == "{" then
+		    numOpeningTokens = numOpeningTokens + 1
+		    if numOpeningTokens == 1 then
+		      isEnclosedInOutermostTemplate = true
+		      idxTblTemplateTokens = idxTblTemplateTokens + 1
+		    end
+		    table.insert(tblTemplateTokens, { ["start_pos"] = charIdx-1 })
+		    table.insert(tblIdxTemplateOpenTokens, 1, #tblTemplateTokens)
+		    skipNextChar = true
+		    --mw.log("Encountered open token ", charIdx, numOpeningTokens, numClosingTokens)
+		  end
+		  
+		  -- Template closing token
+		  if numOpeningTokens > 0 and prevChar == "}" and curChar == "}" then
+		    numClosingTokens = numClosingTokens + 1
+		    tblTemplateTokens[tblIdxTemplateOpenTokens[1]]["end_pos"] = charIdx
+		    table.remove(tblIdxTemplateOpenTokens, 1)
+		    skipNextChar = true
+		    --mw.log("Encountered closing token ", charIdx, numOpeningTokens, numClosingTokens)
+		  end
+		
+		  -- Reset counters
+		  if numOpeningTokens == numClosingTokens and numOpeningTokens > 0 then
+		  	idxTblTemplateTokens = idxTblTemplateTokens + numOpeningTokens + 1
+		    numOpeningTokens = 0
+		    numClosingTokens = 0
+		    --mw.log("Reset opening & closing tokens")
+		  end
+		  
+	  end
+	
+	  charIdx = charIdx + 1
+	  prevChar = curChar
+
+	end
+	
+	return tblTemplateTokens
 
 end
 
@@ -379,11 +336,6 @@ function groupParsedTemplates(strWikitext, arrParsedTemplates)
 	local groupedTemplate = { }
 	for i,template in ipairs(arrParsedTemplates) do
 		
-		-- Process parsed template names (remove trailing whitespace, force first character to be upper case, convert underscore to space)
-		local templateName = trim(template["template_name"])
-		templateName = replace(templateName, "^(%w)", function (firstLetter) return upper(firstLetter) end)
-		templateName = replace(templateName, "_", " ")
-		
 		-- Extract the substring representing the template declaration and get the parsed template parameters
 		local templateContents = sub(strWikitext, template["start_pos"], template["end_pos"])
 		local templateParams = splitTemplateParameters(templateContents, templateName)
@@ -391,6 +343,9 @@ function groupParsedTemplates(strWikitext, arrParsedTemplates)
 		-- Map extracted properties to the template Object-like Lua table
 		template["template_contents"] = templateContents
 		template["template_params"] = templateParams
+		local templateName = replace(templateContents, "^{{([^\n|:}]+)[\n|:}].*", "%1")
+		templateName = replace(templateName, "^(%w)", function (firstLetter) return upper(firstLetter) end)
+		templateName = replace(templateName, "_", " ")
 		
 		-- Group to hashmap-like Lua table accordingly
 		if groupedTemplate[templateName] == nil then
@@ -434,10 +389,14 @@ function p.testSongboxTemplates()
 	local page_contents = mw.title.new(page_name):getContent()
 	
 	local timeStart = os.clock()
-	local arrGroupedTemplates = p.extractTemplates(page_contents)
+	local arrGroupedTemplates = parseTemplates(page_contents)
+	local timeParsed = os.clock()
+	local arrGroupedTemplates = groupParsedTemplates(page_contents, arrGroupedTemplates)
 	local timeEnd = os.clock()
 	local diffTime = timeEnd - timeStart
-	mw.log("Finished in " .. diffTime .. " s")
+	mw.log("Parsed in " .. timeParsed - timeStart .. " s", "Finished in " .. timeEnd - timeStart .. " s")
+	
+	--mw.log(dump(arrGroupedTemplates))
 	
 	local arr_infobox_template = arrGroupedTemplates["Infobox Song"]
 	local arr_altver_template = arrGroupedTemplates["AlternateVersion"] or { }
