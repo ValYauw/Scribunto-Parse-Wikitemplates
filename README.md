@@ -3,6 +3,8 @@
 
 The extension [Scribunto](https://www.mediawiki.org/wiki/Extension:Scribunto) is required to use this module.
 
+Written for the [Vocaloid Lyrics Wiki](https://vocaloidlyrics.fandom.com/wiki/Module:ParseTemplate) to extract information from thousands of pages.
+
 # Quick Start Guide
 
 To start using this module, type the following lines of code in a module page:
@@ -56,7 +58,7 @@ print( mw.text.jsonEncode(table_of_templates) )
 ```
 
 
-==Example Usage==
+## Example Usage
 
 Take the example wikitext portion of a page:
 <pre>{{Stub}}{{Infobox character

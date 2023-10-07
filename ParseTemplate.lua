@@ -15,8 +15,9 @@ local trim = mw.text.trim
 ------------------------------------------------------------------------
 -- Auxiliary function
 -- Displays the contents of a Lua table into a human-readable format
--- @param o 		Lua table
--- returns			string
+-- For showing output during debugging only
+-- @param o     Lua table
+-- returns      string
 ------------------------------------------------------------------------
 function dump(o)
    if type(o) == 'table' then
@@ -34,10 +35,10 @@ end
 ------------------------------------------------------------------------
 -- Auxiliary function
 -- Slices a section of a Lua table
--- @param t 		Lua table
--- @param index 	start index of slice
--- @param length	max. number of elements in sliced table
--- returns			Lua table
+-- @param t       Lua table
+-- @param index   start index of slice
+-- @param length  max. number of elements in sliced table
+-- returns        Lua table
 ------------------------------------------------------------------------
 -- Example Usage:	slice( { 1, 2, 3, 4 }, 2, 2 )	-> { 2, 3 }
 --					slice( { 1, 2, 3, 4 }, 2, 4 )	-> { 2, 3, 4 }
@@ -58,13 +59,13 @@ end
 -- Auxiliary function
 -- Outputs an array-like Lua table containing the start or ending positions of
 -- token characters found matched within a string
--- @param str 			String to search token characters in
--- @param tokenPattern	Lua pattern representing the token character(s) to look for
--- @param getEndPos		Boolean. Set true to get the function to output array of ending positions.
---						Array of starting positions is output by default.
--- @param offsetOne		Boolean. Offset one character to the right/left when extracting starting/ending positions.
---						To emulate lookahead/lookbehind in regex
--- returns				Lua table
+-- @param str           String to search token characters in
+-- @param tokenPattern  Lua pattern representing the token character(s) to look for
+-- @param getEndPos     Boolean. Set true to get the function to output array of ending positions.
+--						          Array of starting positions is output by default.
+-- @param offsetOne     Boolean. Offset one character to the right/left when extracting starting/ending positions.
+--                      To emulate lookahead/lookbehind in regex
+-- returns              Lua table
 ------------------------------------------------------------------------
 -- Example Usage:	getTokenPositions("{{template|{{foo}}|bar}}", "{{") ->  { 1, 12 }
 --					getTokenPositions("{{template|{{foo}}|bar}}", "}}", true) ->  { 18, 24 }
@@ -95,12 +96,12 @@ end
 -- in the case where the templates are nesting another template within
 -- Does not return anything.
 --
--- @param arrOpenToken 			Array-like Lua table of opening token positions ({{)
--- @param arrCloseToken			Array-like Lua table of closing token positions (}})
--- @param arrTemplateNames		Array-like Lua table of template names
--- @param arrParsedTemplates	Array-like Lua table of Object-like Lua tables representing 
---								parsed templates
--- returns						nil
+-- @param arrOpenToken        Array-like Lua table of opening token positions ({{)
+-- @param arrCloseToken       Array-like Lua table of closing token positions (}})
+-- @param arrTemplateNames    Array-like Lua table of template names
+-- @param arrParsedTemplates  Array-like Lua table of Object-like Lua tables representing 
+--                            parsed templates
+-- returns                    nil
 ------------------------------------------------------------------------
 function partitionNestedTemplatePositions(arrOpenToken, arrCloseToken, arrTemplateNames, arrParsedTemplates)
 	
@@ -125,10 +126,10 @@ end
 --	(e.g. {{DEFAULTSORT:}}) in the page 
 -- Should be able to get nesting and nested templates
 --
--- @param strWikitext 			Wikitext contents of a page
--- returns						Array-like Lua table containing:
---									Object-like Lua table with keys "start_pos", "end_pos",
---									and "template_name"
+-- @param strWikitext      Wikitext contents of a page
+-- returns                 Array-like Lua table containing:
+--                         Object-like Lua table with keys "start_pos", "end_pos",
+--                         and "template_name"
 ------------------------------------------------------------------------
 function parseTemplates(strWikitext)
 	
@@ -208,12 +209,12 @@ end
 --      the opening token is '{{' and the closing token is '}}'
 --      thus parameters of the outer template should not be parsed between these limits
 --
--- @param strTemplate 			String containing wikitext, declaring a template
--- @param openTokenPattern		Lua pattern for opening token
--- @param closeTokenPattern		Lua pattern for closing token
--- @param offsetOne				Boolean. Offset one character to the right/left when extracting starting/ending positions.
---								To emulate lookahead/lookbehind in regex
--- returns						Array-like Lua table of Lua tables containing two elements (start of limit & end of limit) 
+-- @param strTemplate         String containing wikitext, declaring a template
+-- @param openTokenPattern    Lua pattern for opening token
+-- @param closeTokenPattern   Lua pattern for closing token
+-- @param offsetOne           Boolean. Offset one character to the right/left when extracting starting/ending positions.
+--                            To emulate lookahead/lookbehind in regex
+-- returns                    Array-like Lua table of Lua tables containing two elements (start of limit & end of limit) 
 ------------------------------------------------------------------------
 function getInvalidPositionLimits(strTemplate, openTokenPattern, closeTokenPattern, offsetOne)
 	
@@ -269,11 +270,11 @@ end
 -- For the given token position (integer), determine whether the token position is valid, 
 -- i.e. outside imposed limits given in arg
 --
--- @param tokenPos 				Integer representing a | token position
--- @param arg					Variable number of arguments
---								Each argument is a Lua table containing imposed limits 
---								where a | token would be invalid
--- returns						Boolean
+-- @param tokenPos      Integer representing a | token position
+-- @param arg           Variable number of arguments
+--                      Each argument is a Lua table containing imposed limits 
+--                      where a | token would be invalid
+-- returns              Boolean
 ------------------------------------------------------------------------
 function positionIsValid(tokenPos, ...)
 	
@@ -299,10 +300,10 @@ end
 -- Output is an Object-like Lua table mapping the template parameters
 -- Should be able to deal with nested templates
 --
--- @param strTemplate 			String containing wikitext, declaring a template
--- @param templateName			String containing the name of the template
--- returns						Object-like Lua table with each parameter mapped as 
---								key-and-value
+-- @param strTemplate       String containing wikitext, declaring a template
+-- @param templateName      String containing the name of the template
+-- returns                  Object-like Lua table with each parameter mapped as 
+--                          key-and-value
 ------------------------------------------------------------------------
 function splitTemplateParameters(strTemplate, templateName)
 	
@@ -365,9 +366,9 @@ end
 -- Sub-level function
 -- Group parsed templates and populate with required properties (template contents) 
 --
--- @param strWikitext 			Wikitext contents of a page
--- @param arrParsedTemplates 	Output from parseTemplates
--- returns						Complex Object-like Lua table:
+-- @param strWikitext         Wikitext contents of a page
+-- @param arrParsedTemplates  Output from parseTemplates
+-- returns                    Complex Object-like Lua table:
 --								Each key of this Object-like Lua table corresponds to a 
 --								group of templates sharing the same name
 --								Each value of this Object-like Lua table is an array-like 
@@ -407,8 +408,8 @@ end
 -- Part of exports
 -- Parses the contents of the given page and outputs the template, names, positions, and parameters
 --
--- @param page_contents 		Wikitext contents of a page
--- returns						Lua table
+-- @param page_contents     Wikitext contents of a page
+-- returns                  Lua table
 ------------------------------------------------------------------------
 function p.extractTemplates(page_contents)
 	
@@ -426,34 +427,6 @@ function p.test()
 	local test_string = "{{super|{{outer|a|{{inner|1|2}}|b}}|{{inner|3=foo|4=bar}}}}"
 	local arrTemplates = p.extractTemplates(test_string)
 	mw.log(dump(arrTemplates))
-end
-
-function p.testSongboxTemplates()
-	
-	local page_name = "Nightfall/Wei_love_Yanzi"
-	local page_contents = mw.title.new(page_name):getContent()
-	
-	local timeStart = os.clock()
-	local arrGroupedTemplates = p.extractTemplates(page_contents)
-	local timeEnd = os.clock()
-	local diffTime = timeEnd - timeStart
-	mw.log("Finished in " .. diffTime .. " s")
-	
-	local arr_infobox_template = arrGroupedTemplates["Infobox Song"]
-	local arr_altver_template = arrGroupedTemplates["AlternateVersion"] or { }
-	local defaulttitle = arrGroupedTemplates["DISPLAYTITLE"]
-	local lowercasetemplate = arrGroupedTemplates["Lowercase"]
-	
-	mw.log("Infobox Song Templates")
-	mw.log( mw.text.jsonEncode(arr_infobox_template) )
-	
-	mw.log("\nAlternate Version Templates")
-	mw.log( mw.text.jsonEncode(arr_altver_template) )
-	
-	mw.log("\nTitle")
-	if defaulttitle ~= nil then mw.log(defaulttitle[1]["template_contents"]) end
-	if lowercasetemplate ~= nil then mw.log(lowercasetemplate[1]["template_contents"]) end
-	
 end
 
 return p
